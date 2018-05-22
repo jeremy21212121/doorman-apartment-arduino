@@ -2,6 +2,7 @@
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
 
+
 #include "Secrets.h"
 /* Secrets.h contains:
 const char* ssid = "WifiNetworkName";
@@ -68,10 +69,12 @@ void setup(void) {
 
 
   server.on("/", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/javascript", "{\"alive\":true}");
   });
 
   server.on("/api/toggle", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/javascript", "{\"success\":true}");
     toggleRelay();
   });
