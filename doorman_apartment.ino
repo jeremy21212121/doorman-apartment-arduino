@@ -9,25 +9,40 @@ const char* password = "WifiPassword";
 */
 
 
+/*Stepper motor*/
+#include <StepperMotorFork.h>
+
+StepperMotor motor(14,12,13,15);//the 4 pins going to stepper motor controller
+int inPin = 5;//pin used for pushbutton input
+int val = 0;
+int locked = 0;//lock state
+/* */
+
+
+
+
 ESP8266WebServer server(80);
-IPAddress ip(192, 168, 0, 50); // where xx is the desired IP Address
+IPAddress ip(192, 168, 0, 51); // where xx is the desired IP Address
 IPAddress gateway(192, 168, 0, 1); // set gateway to match your network. this is the ip address of your router.
 
-const int relayPin = D7;
+//const int relayPin = D7;
 
 //void handleRoot() {
 //  server.send(200, "application/javascript", "{\"alive\":true}");
 //  }
 
-void toggleRelay() {
-    digitalWrite(relayPin, HIGH);
-    delay(100);
-    digitalWrite(relayPin, LOW);
-    delay(75);
-    digitalWrite(relayPin, HIGH);
-    delay(100);
-    digitalWrite(relayPin, LOW);
-  }
+void trigger(){
+  if (locked == 0) {
+      motor.step(-1024);
+      locked = 1;
+      }
+    else {
+      motor.step(1024);
+      locked = 0;
+      }
+    delay(200);
+}
+
 void handleNotFound() {
   
   String message = "File Not Found\n\n";
@@ -46,9 +61,13 @@ void handleNotFound() {
 }
 
 void setup(void) {
-  pinMode(relayPin, OUTPUT);
-  digitalWrite(relayPin, 0);
+//  pinMode(relayPin, OUTPUT);
+//  digitalWrite(relayPin, 0);
   Serial.begin(115200);
+
+  motor.setStepDuration(1);
+  pinMode(inPin, INPUT);//input pin for stepper motor manual override
+  
   WiFi.mode(WIFI_STA);
   IPAddress subnet(255, 255, 255, 0); // set subnet mask to match your network
   WiFi.config(ip, gateway, subnet);
@@ -73,7 +92,12 @@ void setup(void) {
 
   server.on("/api/toggle", []() {
     server.send(200, "application/javascript", "{\"success\":true}");
-    toggleRelay();
+    trigger();
+  });
+
+    server.on("/api/status", []() {
+    server.send(200, "application/javascript", "{\"locked\":"+ String(locked) + "}");
+    trigger();
   });
 
   server.onNotFound(handleNotFound);
@@ -84,4 +108,10 @@ void setup(void) {
 
 void loop(void) {
   server.handleClient();
+  
+  val = digitalRead(inPin);
+  
+  if (val == HIGH) { //button is pushed    
+    trigger();
+  }
 }
