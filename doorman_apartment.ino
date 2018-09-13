@@ -87,15 +87,18 @@ void setup(void) {
 
 
   server.on("/", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/javascript", "{\"alive\":true}");
   });
 
   server.on("/api/toggle", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/javascript", "{\"success\":true}");
     trigger();
   });
 
     server.on("/api/status", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/javascript", "{\"locked\":"+ String(locked) + "}");
     trigger();
   });
