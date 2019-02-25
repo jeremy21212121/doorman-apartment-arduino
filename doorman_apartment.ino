@@ -1,69 +1,48 @@
 #include <ESP8266WiFi.h>
 #include <WiFiClient.h>
 #include <ESP8266WebServer.h>
-
-
+#include <StepperMotorFork.h>
 #include "Secrets.h"
 /* Secrets.h contains:
 const char* ssid = "WifiNetworkName";
 const char* password = "WifiPassword";
 */
-
-
-/*Stepper motor*/
-#include <StepperMotorFork.h>
-
-StepperMotor motor(14,12,13,15);//the 4 pins going to stepper motor controller
-int inPin = 5;//pin used for pushbutton input
-int val = 0;
-int locked = 0;//lock state
-/* */
-
-
-
-
 ESP8266WebServer server(80);
 IPAddress ip(192, 168, 0, 51); // where xx is the desired IP Address
 IPAddress gateway(192, 168, 0, 1); // set gateway to match your network. this is the ip address of your router.
 
-//const int relayPin = D7;
-
-//void handleRoot() {
-//  server.send(200, "application/javascript", "{\"alive\":true}");
-//  }
+StepperMotor motor(14,12,13,15);//the 4 pins going to stepper motor controller
+int inPin = 5;//pin used for pushbutton input
+bool locked = false;
 
 void trigger(){
-  if (locked == 0) {
-      motor.step(-1024);
-      locked = 1;
+  if (!locked) {
+      motor.step(-1280);
+      locked = true;
       }
     else {
-      motor.step(1024);
-      locked = 0;
+      motor.step(1280);
+      locked = false;
       }
     delay(200);
 }
 
-void handleNotFound() {
-  
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++) {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  server.send(404, "text/plain", message);
-  
+void sendJSON(int code, String json) {
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.send(code, "application/javascript", json);
 }
 
+String getLockedStatus(bool locked) {
+  if (locked) {
+    return "true";
+  } else {
+    return "false";
+  }
+}
+
+
 void setup(void) {
-//  pinMode(relayPin, OUTPUT);
-//  digitalWrite(relayPin, 0);
+
   Serial.begin(115200);
 
   motor.setStepDuration(1);
@@ -88,23 +67,21 @@ void setup(void) {
 
 
   server.on("/", []() {
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/javascript", "{\"alive\":true}");
+    sendJSON(200, "{\"alive\":\"true\"}\n");
   });
 
   server.on("/api/toggle", []() {
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/javascript", "{\"success\":true}");
+    sendJSON(200, "{\"success\":\"true\"}\n");
     trigger();
   });
 
-    server.on("/api/status", []() {
-    server.sendHeader("Access-Control-Allow-Origin", "*");
-    server.send(200, "application/javascript", "{\"locked\":"+ String(locked) + "}");
-    trigger();
+  server.on("/api/status", []() {
+    sendJSON(200, "{\"locked\":\""+ getLockedStatus(locked) + "\"}\n");
   });
 
-  server.onNotFound(handleNotFound);
+  server.onNotFound( []() {
+    sendJSON(404, "{\"error\":\"404\"}\n");
+  });
 
   server.begin();
   Serial.println("HTTP server started");
@@ -112,10 +89,7 @@ void setup(void) {
 
 void loop(void) {
   server.handleClient();
-  
-  val = digitalRead(inPin);
-  
-  if (val == HIGH) { //button is pushed    
+  if (digitalRead(inPin) == HIGH) { //button is pushed    
     trigger();
   }
 }
